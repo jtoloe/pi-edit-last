@@ -5,7 +5,7 @@ A Pi extension that opens the latest assistant response in an editor and loads t
 ## Why
 
 Long assistant replies are hard to reuse by hand.
-`/edit-last` grabs the newest reply, drops it into Pi's editor, and lets you shape it into your next message.
+`/edit-last` grabs the newest reply, drops it into an editor, and lets you shape it into your next message.
 
 ## Install
 
@@ -25,19 +25,18 @@ Then reload Pi:
 /edit-last
 ```
 
-The latest assistant response opens in Pi's multi-line editor.
-Edit it there, or press `Ctrl+G` to edit it in your external editor.
-`Ctrl+G` uses `externalEditor`, then `$VISUAL`, then `$EDITOR`.
+When `$VISUAL` or `$EDITOR` is set, the latest assistant response opens directly in that external editor.
+When neither is set, the response opens in Pi's built-in multi-line editor, where `Ctrl+G` falls back to the external editor.
 
 When you submit, the edited text becomes the input box content.
 Press Enter to send it.
-If you cancel (`Esc` or `Ctrl+C`), the input is left unchanged.
+If you cancel (`Esc`, `Ctrl+C`, or a non-zero editor exit), the input is left unchanged.
 
 ## How it works
 
-The command uses `ctx.ui.editor()`.
-That editor already wires `Ctrl+G` to Pi's external editor handoff, which suspends the TUI and spawns `$EDITOR` with a real terminal.
-This is why terminal editors like `nvim` work, unlike extensions that spawn an editor detached.
+The command reads the latest assistant response from the session branch.
+When an external editor is configured, it suspends the Pi TUI, writes the response to a temp file, spawns `$EDITOR` with the terminal inherited, waits for it to exit, then restores the TUI and loads the file contents into the input.
+This is the same suspend/resume handoff Pi uses for its own `Ctrl+G`, which is why terminal editors like `nvim` work correctly.
 
 ## Development
 
