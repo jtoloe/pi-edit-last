@@ -40,6 +40,16 @@ When you submit, the edited text becomes the input box content.
 Press Enter to send it.
 If you cancel (`Esc`, `Ctrl+C`, or a non-zero editor exit), the input is left unchanged.
 
+## Keyboard shortcut
+
+Optionally bind the commands to keys. Create `~/.pi/agent/pi-edit-last.json`:
+
+```json
+{ "shortcuts": { "edit-last": "ctrl+shift+e", "edit-message": "ctrl+shift+m" } }
+```
+
+Both keys are optional. Pi key syntax applies (e.g. `alt+e`, `ctrl+shift+x`). Reload after editing the file. Unknown command names and duplicate keys produce a warning and are skipped; keys Pi cannot parse are silently ignored. No config file means no shortcuts.
+
 ## How it works
 
 `/edit-last` reads the latest assistant response from the session branch. `/edit-message` lists all assistant messages and tool results on the branch and lets you pick one.
