@@ -106,11 +106,12 @@ const runExternalEditor = async (
   content: string,
   cwd: string,
 ): Promise<string | undefined> => {
-  const directory = await mkdtemp(join(tmpdir(), "pi-edit-last-"));
-  const filePath = join(directory, "response.md");
-  await writeFile(filePath, content, "utf-8");
-
+  let directory: string | undefined;
   try {
+    directory = await mkdtemp(join(tmpdir(), "pi-edit-last-"));
+    const filePath = join(directory, "response.md");
+    await writeFile(filePath, content, "utf-8");
+
     const [editor, ...editorArgs] = command.split(/\s+/).filter(Boolean);
     const exitCode = await new Promise<number | null>((resolve) => {
       const child = spawn(editor, [...editorArgs, filePath], {
@@ -128,7 +129,9 @@ const runExternalEditor = async (
 
     return (await readFile(filePath, "utf-8")).replace(/^\uFEFF/, "").replace(/\n$/, "");
   } finally {
-    await rm(directory, { recursive: true, force: true });
+    if (directory) {
+      await rm(directory, { recursive: true, force: true });
+    }
   }
 };
 
