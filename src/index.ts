@@ -118,7 +118,13 @@ const findLatestResponse = (ctx: ExtensionContext): string | undefined => {
   return undefined;
 };
 
-const resolveExternalEditor = (): string | undefined => {
+const resolveExternalEditor = (configured?: string): string | undefined => {
+  const configuredEditor =
+    typeof configured === "string" ? configured.trim() : undefined;
+  if (configuredEditor) {
+    return configuredEditor;
+  }
+
   const visual = process.env.VISUAL?.trim();
   if (visual) {
     return visual;
@@ -166,8 +172,10 @@ const runEditor = async (
   ctx: ExtensionContext,
   title: string,
   text: string,
+  configuredEditor?: string,
 ): Promise<string | undefined> => {
-  const external = ctx.mode === "tui" ? resolveExternalEditor() : undefined;
+  const external =
+    ctx.mode === "tui" ? resolveExternalEditor(configuredEditor) : undefined;
   return external
     ? await openExternalEditor(ctx, external, text)
     : await ctx.ui.editor(title, text);
@@ -195,7 +203,7 @@ const openExternalEditor = (
   });
 };
 
-const editMessage = async (ctx: ExtensionContext): Promise<void> => {
+const editMessage = async (ctx: ExtensionContext, configuredEditor?: string): Promise<void> => {
   const items = collectEditable(ctx);
   if (items.length === 0) {
     ctx.ui.notify(
@@ -216,7 +224,7 @@ const editMessage = async (ctx: ExtensionContext): Promise<void> => {
     return;
   }
 
-  const edited = await runEditor(ctx, "Edit selected message", item.text);
+  const edited = await runEditor(ctx, "Edit selected message", item.text, configuredEditor);
   if (edited === undefined) {
     ctx.ui.notify("Cancelled. Input unchanged.", "info");
     return;
@@ -226,7 +234,7 @@ const editMessage = async (ctx: ExtensionContext): Promise<void> => {
   ctx.ui.notify("Loaded edited message into the input.", "info");
 };
 
-const editLast = async (ctx: ExtensionContext): Promise<void> => {
+const editLast = async (ctx: ExtensionContext, configuredEditor?: string): Promise<void> => {
   const text = findLatestResponse(ctx);
   if (!text) {
     ctx.ui.notify(
@@ -236,7 +244,7 @@ const editLast = async (ctx: ExtensionContext): Promise<void> => {
     return;
   }
 
-  const edited = await runEditor(ctx, "Edit latest response", text);
+  const edited = await runEditor(ctx, "Edit latest response", text, configuredEditor);
 
   if (edited === undefined) {
     ctx.ui.notify("Cancelled. Input unchanged.", "info");
@@ -252,7 +260,7 @@ export default function (pi: ExtensionAPI) {
     description: "Open the latest assistant response in an editor, then load the result into the input",
     handler: async (_args, ctx) => {
       await ctx.waitForIdle();
-      await editLast(ctx);
+      await editLast(ctx, pi.getSettings().externalEditor);
     },
   });
 
@@ -270,7 +278,7 @@ export default function (pi: ExtensionAPI) {
       return;
     }
 
-    const commands: Record<string, { description: string; run: (ctx: ExtensionContext) => Promise<void> }> = {
+    const commands: Record<string, { description: string; run: (ctx: ExtensionContext, configuredEditor?: string) => Promise<void> }> = {
       "edit-last": { description: "Edit the latest assistant response", run: editLast },
       "edit-message": { description: "Pick a previous message or tool result to edit", run: editMessage },
     };
@@ -294,7 +302,7 @@ export default function (pi: ExtensionAPI) {
             shortcutCtx.ui.notify("pi-edit-last: wait until the agent is idle.", "info");
             return;
           }
-          await handler.run(shortcutCtx);
+          await handler.run(shortcutCtx, pi.getSettings().externalEditor);
         },
       });
     }
@@ -307,7 +315,7 @@ export default function (pi: ExtensionAPI) {
       "Pick a previous assistant message or tool result to edit, then load the result into the input",
     handler: async (_args, ctx) => {
       await ctx.waitForIdle();
-      await editMessage(ctx);
+      await editMessage(ctx, pi.getSettings().externalEditor);
     },
   });
 };

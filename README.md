@@ -33,8 +33,8 @@ Opens the latest assistant response.
 
 Lists assistant messages and tool results on the current branch (newest first) and opens the chosen one.
 
-When `$VISUAL` or `$EDITOR` is set, the latest assistant response opens directly in that external editor.
-When neither is set, the response opens in Pi's built-in multi-line editor, where `Ctrl+G` falls back to the external editor.
+The external editor is resolved the same way as Pi's own `Ctrl+G`: the `externalEditor` setting, then `$VISUAL`, then `$EDITOR`.
+When none is set, the response opens in Pi's built-in multi-line editor, where `Ctrl+G` falls back to the external editor.
 
 When you submit, the edited text becomes the input box content.
 Press Enter to send it.
@@ -53,7 +53,7 @@ Both keys are optional. Pi key syntax applies (e.g. `alt+e`, `ctrl+shift+x`). Re
 ## How it works
 
 `/edit-last` reads the latest assistant response from the session branch. `/edit-message` lists all assistant messages and tool results on the branch and lets you pick one.
-When an external editor is configured, it suspends the Pi TUI, writes the response to a temp file, spawns `$EDITOR` with the terminal inherited, waits for it to exit, then restores the TUI and loads the file contents into the input.
+When an external editor is configured, it suspends the Pi TUI, writes the response to a temp file, spawns the editor command with the terminal inherited, waits for it to exit, then restores the TUI and loads the file contents into the input.
 This is the same suspend/resume handoff Pi uses for its own `Ctrl+G`, which is why terminal editors like `nvim` work correctly.
 
 ## Development
