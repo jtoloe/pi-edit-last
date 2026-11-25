@@ -1,6 +1,6 @@
 # pi-edit-last
 
-A Pi extension that opens the latest assistant response in an editor and loads the result into the input box.
+A Pi extension that opens assistant responses and tool results in an editor and loads the result into the input box.
 
 ## Why
 
@@ -25,6 +25,14 @@ Then reload Pi:
 /edit-last
 ```
 
+Opens the latest assistant response.
+
+```text
+/edit-message
+```
+
+Lists assistant messages and tool results on the current branch (newest first) and opens the chosen one.
+
 When `$VISUAL` or `$EDITOR` is set, the latest assistant response opens directly in that external editor.
 When neither is set, the response opens in Pi's built-in multi-line editor, where `Ctrl+G` falls back to the external editor.
 
@@ -34,7 +42,7 @@ If you cancel (`Esc`, `Ctrl+C`, or a non-zero editor exit), the input is left un
 
 ## How it works
 
-The command reads the latest assistant response from the session branch.
+`/edit-last` reads the latest assistant response from the session branch. `/edit-message` lists all assistant messages and tool results on the branch and lets you pick one.
 When an external editor is configured, it suspends the Pi TUI, writes the response to a temp file, spawns `$EDITOR` with the terminal inherited, waits for it to exit, then restores the TUI and loads the file contents into the input.
 This is the same suspend/resume handoff Pi uses for its own `Ctrl+G`, which is why terminal editors like `nvim` work correctly.
 

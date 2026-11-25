@@ -12,6 +12,7 @@ type ContentBlock = {
 type AssistantMessage = {
   role?: string;
   content?: unknown;
+  toolName?: string;
 };
 
 type MessageEntry = {
@@ -40,6 +41,36 @@ const extractText = (content: unknown): string => {
     })
     .filter((text) => text.trim().length > 0)
     .join("\n\n");
+};
+
+const snippet = (text: string): string => {
+  const codePoints = Array.from(text.replace(/\s+/g, " ").trim());
+  return codePoints.length > 60
+    ? `${codePoints.slice(0, 60).join("")}\u2026`
+    : codePoints.join("");
+};
+
+const collectEditable = (ctx: ExtensionCommandContext): { label: string; text: string }[] => {
+  const branch = ctx.sessionManager.getBranch() as MessageEntry[];
+  const items: { label: string; text: string }[] = [];
+
+  for (const entry of branch) {
+    if (entry?.type !== "message") {
+      continue;
+    }
+    const message = entry.message;
+    const text = extractText(message?.content).trim();
+    if (text.length === 0) {
+      continue;
+    }
+    if (message?.role === "assistant") {
+      items.push({ label: `assistant: ${snippet(text)}`, text });
+    } else if (message?.role === "toolResult") {
+      items.push({ label: `toolResult(${message.toolName ?? "tool"}): ${snippet(text)}`, text });
+    }
+  }
+
+  return items.reverse();
 };
 
 const findLatestResponse = (ctx: ExtensionCommandContext): string | undefined => {
@@ -101,6 +132,17 @@ const runExternalEditor = async (
   }
 };
 
+const runEditor = async (
+  ctx: ExtensionCommandContext,
+  title: string,
+  text: string,
+): Promise<string | undefined> => {
+  const external = ctx.mode === "tui" ? resolveExternalEditor() : undefined;
+  return external
+    ? await openExternalEditor(ctx, external, text)
+    : await ctx.ui.editor(title, text);
+};
+
 const openExternalEditor = (
   ctx: ExtensionCommandContext,
   command: string,
@@ -138,10 +180,7 @@ export default function (pi: ExtensionAPI) {
         return;
       }
 
-      const external = ctx.mode === "tui" ? resolveExternalEditor() : undefined;
-      const edited = external
-        ? await openExternalEditor(ctx, external, text)
-        : await ctx.ui.editor("Edit latest response", text);
+      const edited = await runEditor(ctx, "Edit latest response", text);
 
       if (edited === undefined) {
         ctx.ui.notify("Cancelled. Input unchanged.", "info");
@@ -150,6 +189,43 @@ export default function (pi: ExtensionAPI) {
 
       ctx.ui.setEditorText(edited);
       ctx.ui.notify("Loaded edited response into the input.", "info");
+    },
+  });
+
+  pi.registerCommand("edit-message", {
+    description:
+      "Pick a previous assistant message or tool result to edit, then load the result into the input",
+    handler: async (_args, ctx) => {
+      await ctx.waitForIdle();
+
+      const items = collectEditable(ctx);
+      if (items.length === 0) {
+        ctx.ui.notify(
+          "No assistant messages or tool results with text found on the current branch.",
+          "warning",
+        );
+        return;
+      }
+
+      const chosen = await ctx.ui.select(
+        "Edit message (newest first)",
+        items.map((item, index) => `${index + 1}. ${item.label}`),
+      );
+      const chosenIndex = Number(chosen?.match(/^\d+/)?.[0] ?? 0) - 1;
+      const item = items[chosenIndex];
+      if (!item) {
+        ctx.ui.notify("Cancelled. Input unchanged.", "info");
+        return;
+      }
+
+      const edited = await runEditor(ctx, "Edit selected message", item.text);
+      if (edited === undefined) {
+        ctx.ui.notify("Cancelled. Input unchanged.", "info");
+        return;
+      }
+
+      ctx.ui.setEditorText(edited);
+      ctx.ui.notify("Loaded edited message into the input.", "info");
     },
   });
 }
